@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IT Support Toolkit</title>
+<style>
+  :root {
+    --bg: #f4f6fa; --card: #ffffff; --text: #1f2937; --muted: #6b7280;
+    --line: #e5e7eb; --accent: #2563eb; --accent-d: #1d4ed8;
+    --code-bg: #111827; --code-fg: #e5e7eb; --warn: #b45309; --warn-bg: #fef3c7;
+    --ok: #047857;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f172a; --card: #1e293b; --text: #e5e7eb; --muted: #94a3b8;
+      --line: #334155; --accent: #3b82f6; --accent-d: #60a5fa;
+      --code-bg: #020617; --warn: #fbbf24; --warn-bg: #422006; --ok: #34d399;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+         background: var(--bg); color: var(--text); }
+  .hidden { display: none !important; }
+
+  /* ---------- OS picker ---------- */
+  #picker { min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+            justify-content: center; text-align: center; padding: 24px; }
+  #picker h1 { font-size: 2.2rem; margin: 0 0 6px; }
+  #picker p { color: var(--muted); margin: 0 0 28px; }
+  .os-row { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+  .os-btn { width: 220px; padding: 32px 16px; border: 2px solid var(--line); border-radius: 16px;
+            background: var(--card); color: var(--text); font-size: 1.25rem; font-weight: 700;
+            cursor: pointer; transition: .15s; }
+  .os-btn:hover { border-color: var(--accent); transform: translateY(-3px);
+                  box-shadow: 0 8px 24px rgba(37,99,235,.18); }
+  .os-btn { position: relative; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+  .os-btn .ico { display: block; width: 72px; height: 72px; margin: 0 auto 14px; }
+  .os-btn .ico svg { width: 100%; height: 100%; display: block; }
+  .os-btn small { display: block; margin-top: 4px; font-size: .78rem; font-weight: 500; color: var(--muted); }
+  .os-btn.detected { border-color: var(--accent); }
+  .os-btn.detected::after { content: "Detected"; position: absolute; top: 10px; right: 10px; font-size: .68rem;
+            font-weight: 700; padding: 3px 8px; border-radius: 999px; background: var(--accent); color: #fff; }
+  .use { font-size: .84rem; line-height: 1.4; padding: 7px 10px; border-left: 3px solid var(--accent);
+         background: rgba(37,99,235,.08); border-radius: 6px; }
+  .use b { color: var(--accent-d); }
+  #detected { margin-top: 24px; font-size: .9rem; color: var(--muted); }
+
+  /* ---------- toolkit ---------- */
+  header { position: sticky; top: 0; z-index: 5; background: var(--card);
+           border-bottom: 1px solid var(--line); padding: 12px 20px;
+           display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  header h2 { margin: 0; font-size: 1.15rem; flex: 1; min-width: 200px; }
+  #search { padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; min-width: 220px;
+            background: var(--bg); color: var(--text); font-size: .95rem; }
+  .btn { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--card);
+         color: var(--text); cursor: pointer; font-size: .9rem; font-weight: 600; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: var(--accent-d); }
+  .btn.done { background: var(--ok); border-color: var(--ok); color: #fff; }
+
+  #chips { padding: 12px 20px 0; display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--card);
+          cursor: pointer; font-size: .85rem; color: var(--text); }
+  .chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  main { padding: 16px 20px 40px; max-width: 1200px; margin: 0 auto; }
+  .cat-title { margin: 22px 0 10px; font-size: 1rem; color: var(--muted); text-transform: uppercase;
+               letter-spacing: .06em; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px;
+          display: flex; flex-direction: column; gap: 10px; }
+  .card h3 { margin: 0; font-size: 1.02rem; }
+  .card .desc { margin: 0; color: var(--muted); font-size: .9rem; line-height: 1.4; }
+  .badges { display: flex; gap: 6px; flex-wrap: wrap; }
+  .badge { font-size: .72rem; font-weight: 700; padding: 3px 8px; border-radius: 6px;
+           background: var(--warn-bg); color: var(--warn); }
+  .badge.blue { background: rgba(37,99,235,.12); color: var(--accent); }
+  .host-row { display: flex; gap: 8px; align-items: center; }
+  .host-row label { font-size: .85rem; color: var(--muted); }
+  .host-row input { flex: 1; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px;
+                    background: var(--bg); color: var(--text); }
+  .host-row input.bad { border-color: #dc2626; }
+  pre { margin: 0; background: var(--code-bg); color: var(--code-fg); padding: 10px 12px; border-radius: 8px;
+        font: .8rem/1.45 Consolas, Menlo, monospace; white-space: pre-wrap; word-break: break-word;
+        max-height: 150px; overflow: auto; }
+  ol.steps { margin: 0; padding-left: 20px; font-size: .9rem; line-height: 1.5; }
+  .how { font-size: .82rem; color: var(--muted); }
+  .how b { color: var(--text); }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: auto; }
+  #empty { text-align: center; color: var(--muted); padding: 50px 0; }
+  footer { text-align: center; color: var(--muted); font-size: .8rem; padding: 0 20px 30px; }
+</style>
+</head>
+<body>
+
+<!-- ============ SCREEN 1: choose OS ============ -->
+<section id="picker">
+  <h1>IT Support Toolkit</h1>
+  <p>Which operating system are you using?</p>
+  <div class="os-row">
+    <button class="os-btn" data-os="Windows"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#0A84E8" d="M3 5.2 10.6 4.1v7.1H3zM11.9 3.9 21 2.6v8.6h-9.1zM3 12.5h7.6v7.1L3 18.5zM11.9 12.5H21v8.9l-9.1-1.3z"/></svg></span>Windows<small>Windows 10 / 11</small></button>
+    <button class="os-btn" data-os="macOS"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><defs><mask id="bite"><rect width="24" height="24" fill="#fff"/><circle cx="20.1" cy="8.6" r="2.7" fill="#000"/></mask></defs><g fill="currentColor"><path mask="url(#bite)" d="M12 7.7C10.9 6.9 9.2 6.6 7.8 7.2C5.4 8.2 4 10.6 4.3 13.5C4.6 16.6 6.7 21 9 21C10.2 21 10.9 20.4 12 20.4C13.1 20.4 13.8 21 15 21C17 21 19 17.8 19.7 15C20.3 12.5 19.8 9.8 17.6 8C16.4 7 14.8 6.9 13.6 7.3C13 7.5 12.5 7.6 12 7.7Z"/><path d="M13.4 2.2C13.5 3.4 12.9 4.6 11.7 5.4C11.5 4.2 12.1 2.9 13.4 2.2Z"/></g></svg></span>macOS<small>MacBook, iMac, Mac mini</small></button>
+  </div>
+  <div id="detected"></div>
+</section>
+
+<!-- ============ SCREEN 2: toolkit ============ -->
+<section id="toolkit" class="hidden">
+  <header>
+    <h2 id="tk-title">IT Support Toolkit</h2>
+    <input id="search" type="search" placeholder="Search tools…">
+    <button class="btn" id="change-os">Change OS</button>
+  </header>
+  <div id="chips"></div>
+  <main>
+    <div id="list"></div>
+    <div id="empty" class="hidden">No tools match your search.</div>
+  </main>
+  <footer>
+    Commands that change your system need your confirmation. Read what a command does before you run it.
+  </footer>
+</section>
+
+<script>
+/* ======================================================================
+   TOOL DEFINITIONS  — to add a tool, copy one line and edit it.
+   T(category, name, description, command, options)
+     options.shell : "cmd" | "ps"  (Windows; default "ps" = PowerShell)
+     options.admin : true          needs administrator (Win) / sudo (Mac)
+     options.warn  : true          changes things — shows a warning badge
+     options.steps : [ ... ]       manual click-by-click steps (no command needed)
+     (see WIN_USE / MAC_USE below: add a "Use when" line for each new tool)
+     options.hostDefault : text pre-filled in the host box (default 8.8.8.8)
+     {host} in a command shows a box where the user types a hostname / IP.
+     {port} in a command shows a box for a port number (default 443).
+     Both can be used more than once in the same command.
+   ====================================================================== */
+const T = (category, name, desc, cmd, o = {}) => ({ category, name, desc, cmd, ...o });
+const R = String.raw;
+/* Finds the Wi-Fi device name (usually en0) and stores it in $d */
+const WIFI = R`d=$(networksetup -listallhardwareports | awk '/Wi-Fi|AirPort/{getline; print $2}'); `;
+
+const WINDOWS_TOOLS = [
+  // ---- Basic Troubleshooting
+  T("Basic Troubleshooting", "System information", "OS version, hardware model, uptime, BIOS, memory and network adapters.",
+    "systeminfo", { shell: "cmd" }),
+  T("Basic Troubleshooting", "Uptime (last restart)", "Shows how long the PC has been on since the last full restart.",
+    R`$b=(Get-CimInstance Win32_OperatingSystem).LastBootUpTime; 'Last boot: ' + $b; $u=(Get-Date)-$b; 'Uptime: {0} days, {1} hours, {2} minutes' -f $u.Days,$u.Hours,$u.Minutes`),
+  T("Basic Troubleshooting", "Refresh group policy", "Forces a refresh of group policy. Useful on work PCs.",
+    "gpupdate /force", { shell: "cmd" }),
+  T("Basic Troubleshooting", "Recent system errors", "Last 15 critical/error events from the System event log.",
+    R`Get-WinEvent -FilterHashtable @{LogName='System';Level=1,2} -MaxEvents 15 | Select-Object TimeCreated,ProviderName,Id,Message | Format-List | Out-String -Width 200`),
+  T("Basic Troubleshooting", "Battery health report", "Creates an HTML battery report in the temp folder.",
+    R`$p="$env:TEMP\battery-report.html"; powercfg /batteryreport /output $p; "Report saved to: $p"; Start-Process $p`),
+
+  // ---- Memory & Performance
+  T("Memory & Performance", "RAM usage summary", "Total, used and free RAM.",
+    R`$os=Get-CimInstance Win32_OperatingSystem; $t=[math]::Round($os.TotalVisibleMemorySize/1MB,2); $f=[math]::Round($os.FreePhysicalMemory/1MB,2); $u=[math]::Round($t-$f,2); "Total RAM : $t GB"; "Used      : $u GB"; "Free      : $f GB"`),
+  T("Memory & Performance", "Top 10 processes by RAM", "Which programs use the most memory.",
+    R`Get-Process | Sort-Object WS -Descending | Select-Object -First 10 Name,Id,@{n='RAM_MB';e={[math]::Round($_.WS/1MB,1)}} | Format-Table -AutoSize | Out-String`),
+  T("Memory & Performance", "Top 10 processes by CPU time", "Which programs have used the most CPU time.",
+    R`Get-Process | Sort-Object CPU -Descending | Select-Object -First 10 Name,Id,@{n='CPU_sec';e={[math]::Round($_.CPU,1)}} | Format-Table -AutoSize | Out-String`),
+  T("Memory & Performance", "Windows Memory Diagnostic", "Opens the built-in RAM test. It runs after a restart.",
+    "mdsched.exe", { shell: "cmd", warn: true }),
+
+  // ---- Disk & Cache
+  T("Disk & Cache", "Disk space", "Used and free space on each drive.",
+    R`Get-PSDrive -PSProvider FileSystem | Where-Object {$_.Used -ne $null} | Select-Object Name,@{n='Used_GB';e={[math]::Round($_.Used/1GB,1)}},@{n='Free_GB';e={[math]::Round($_.Free/1GB,1)}} | Format-Table -AutoSize | Out-String`),
+  T("Disk & Cache", "Check temp folder size", "How much space your temp folder is using.",
+    R`$s=(Get-ChildItem $env:TEMP -Recurse -Force -ErrorAction SilentlyContinue | Measure-Object Length -Sum).Sum; "Temp folder: $env:TEMP"; "Size: $([math]::Round($s/1MB,1)) MB"`),
+  T("Disk & Cache", "Clear temp files", "Deletes files in your user temp folder. Files in use are skipped.",
+    R`Get-ChildItem $env:TEMP -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue; 'Temp files cleared (files in use were skipped).'`, { warn: true }),
+  T("Disk & Cache", "Empty Recycle Bin", "Permanently empties the Recycle Bin.",
+    "Clear-RecycleBin -Force -ErrorAction SilentlyContinue; 'Recycle Bin emptied.'", { warn: true }),
+
+  // ---- Network
+  T("Network", "IP configuration (full)", "IP, gateway, DNS servers and MAC address of every adapter.",
+    "ipconfig /all", { shell: "cmd" }),
+  T("Network", "Flush DNS cache", "Clears the local DNS cache. Fixes sites not loading after a DNS change.",
+    "ipconfig /flushdns", { shell: "cmd" }),
+  T("Network", "Release & renew IP", "Drops the current IP and requests a new one from DHCP.",
+    "ipconfig /release && ipconfig /renew", { shell: "cmd", admin: true, warn: true }),
+  T("Network", "Reset network stack", "Resets Winsock and TCP/IP. Restart the PC afterwards.",
+    "netsh winsock reset && netsh int ip reset", { shell: "cmd", admin: true, warn: true }),
+  T("Network", "Ping a host", "Sends 4 ping packets to a host or IP.",
+    "ping -n 4 {host}", { shell: "cmd" }),
+  T("Network", "Trace route", "Each hop between this PC and a host or IP.",
+    "tracert -d -h 20 {host}", { shell: "cmd" }),
+  T("Network", "DNS lookup (nslookup)", "Looks up the IP address of a hostname.",
+    "nslookup {host}", { shell: "cmd" }),
+  T("Network", "Wi-Fi status", "Connected Wi-Fi network, signal strength and radio type.",
+    "netsh wlan show interfaces", { shell: "cmd" }),
+  T("Network", "Test internet (HTTPS)", "Checks that this PC can reach google.com on port 443.",
+    "Test-NetConnection google.com -Port 443 | Out-String"),
+
+  // ---- Repair
+  T("Repair", "System File Checker", "Scans and repairs corrupted Windows system files. Takes several minutes.",
+    "sfc /scannow", { shell: "cmd", admin: true, warn: true }),
+  T("Repair", "DISM: check health", "Quick check for Windows image corruption.",
+    "DISM /Online /Cleanup-Image /CheckHealth", { shell: "cmd", admin: true }),
+  T("Repair", "DISM: restore health", "Repairs the Windows image. Needs internet and takes a long time.",
+    "DISM /Online /Cleanup-Image /RestoreHealth", { shell: "cmd", admin: true, warn: true }),
+  T("Repair", "Check disk (read-only)", "Scans drive C: for errors without changing anything.",
+    "chkdsk C:", { shell: "cmd", admin: true }),
+  T("Repair", "Restart Print Spooler", "Restarts the print spooler service. Fixes stuck printing.",
+    "Restart-Service Spooler -Force; 'Print Spooler restarted.'", { admin: true, warn: true }),
+  T("Repair", "Clear print queue", "Stops the spooler, deletes stuck print jobs, then starts it again.",
+    R`Stop-Service Spooler -Force; Remove-Item "$env:SystemRoot\System32\spool\PRINTERS\*" -Force -ErrorAction SilentlyContinue; Start-Service Spooler; 'Print queue cleared and Spooler restarted.'`, { admin: true, warn: true }),
+
+  // ---- Browser & Apps (manual steps, no command)
+  T("Browser & Apps", "Clear browser cache (Chrome / Edge)", "Fixes pages that load wrong, old logins and slow sites.", null,
+    { steps: ["Open Chrome or Edge.", "Press Ctrl + Shift + Delete.", "Set Time range to \"All time\".",
+              "Tick \"Cached images and files\" (and cookies if asked).", "Click Clear data, then restart the browser."] }),
+  T("Browser & Apps", "Clear Microsoft Teams cache", "Fixes Teams not loading, stuck on sign-in or showing old data.", null,
+    { steps: ["Fully quit Teams (right-click the tray icon, then Quit).", "Press Win + R, type %appdata%\\Microsoft\\Teams (new Teams: %localappdata%\\Packages\\MSTeams_8wekyb3d8bbwe\\LocalCache), press Enter.",
+              "Delete the contents of the folder.", "Start Teams again."] }),
+  T("Browser & Apps", "Force close a frozen app", "Ends an app that won't respond.", null,
+    { steps: ["Press Ctrl + Shift + Esc to open Task Manager.", "Find the app under Processes.", "Right-click it and choose End task."] }),
+];
+
+const MAC_TOOLS = [
+  // ---- Basic Troubleshooting
+  T("Basic Troubleshooting", "System information", "macOS version, Mac model, chip/CPU and memory.",
+    "system_profiler SPSoftwareDataType SPHardwareDataType"),
+  T("Basic Troubleshooting", "Uptime (last restart)", "How long the Mac has been running.", "uptime"),
+  T("Basic Troubleshooting", "Battery health", "Charge level, cycle count and battery condition.",
+    "pmset -g batt; system_profiler SPPowerDataType | grep -E 'Cycle Count|Condition|Maximum Capacity'"),
+  T("Basic Troubleshooting", "Check for software updates", "Lists available macOS updates. Installs nothing.",
+    "softwareupdate -l 2>&1"),
+  T("Basic Troubleshooting", "Recent crash reports", "The 10 most recent app crash reports.",
+    "ls -lt ~/Library/Logs/DiagnosticReports 2>/dev/null | head -n 11"),
+
+  // ---- Memory & Performance
+  T("Memory & Performance", "RAM usage summary", "Physical memory used/free and current memory pressure.",
+    "top -l 1 -n 0 | grep PhysMem; memory_pressure | tail -n 3"),
+  T("Memory & Performance", "Top 10 processes by RAM", "Which apps use the most memory.",
+    "ps -Ao pid,pmem,rss,comm -m | head -n 11"),
+  T("Memory & Performance", "Top 10 processes by CPU", "Which apps use the most CPU right now.",
+    "ps -Ao pid,pcpu,comm -r | head -n 11"),
+  T("Memory & Performance", "Purge inactive memory (RAM cache)", "Frees inactive memory cache. The Mac may feel slower for a moment.",
+    "sudo purge", { admin: true, warn: true }),
+
+  // ---- Disk & Cache
+  T("Disk & Cache", "Disk space", "Free and used space on the main disk.", "df -h /"),
+  T("Disk & Cache", "Largest folders in home", "The 10 biggest folders in your home directory. May take a minute.",
+    "du -sh ~/* 2>/dev/null | sort -hr | head -n 10"),
+  T("Disk & Cache", "Check user cache size", "How much space ~/Library/Caches is using.",
+    "du -sh ~/Library/Caches 2>/dev/null"),
+  T("Disk & Cache", "Clear user caches", "Deletes the contents of ~/Library/Caches. Close your apps first; they rebuild the caches.",
+    "rm -rf ~/Library/Caches/* 2>/dev/null; echo 'User caches cleared.'", { warn: true }),
+  T("Disk & Cache", "Empty Trash", "Permanently empties the Trash.",
+    "rm -rf ~/.Trash/* 2>/dev/null; echo 'Trash emptied.'", { warn: true }),
+
+  // ---- Network
+  T("Network", "IP addresses (all interfaces)", "IP address of each network interface.",
+    "ifconfig | grep -E '^[a-z0-9]+:|inet '"),
+  T("Network", "Default gateway (router)", "The router the Mac uses for internet traffic, and which interface it goes through.",
+    "route -n get default | grep -E 'gateway|interface'"),
+  T("Network", "Public IP address", "The IP address the internet sees for this connection. Needs internet.",
+    "curl -s --max-time 8 https://ifconfig.me; echo"),
+  T("Network", "Interfaces & link status", "Every port (Wi-Fi, Ethernet, Thunderbolt) and whether it is active.",
+    "networksetup -listallhardwareports; ifconfig | grep -E '^en[0-9]+:|status:'"),
+  T("Network", "Network service order", "Which connection the Mac prefers when several are active.",
+    "networksetup -listnetworkserviceorder"),
+  T("Network", "DNS servers in use", "The DNS servers the Mac is using.",
+    "scutil --dns | grep -E 'nameserver|domain' | sort -u"),
+  T("Network", "Flush DNS cache", "Clears the DNS cache.",
+    "sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder; echo 'DNS cache flushed.'", { admin: true }),
+  T("Network", "Ping a host", "Sends 4 ping packets to a host or IP.", "ping -c 4 {host}"),
+  T("Network", "Ping the router", "Tests the local network only. If this works but pinging a website fails, the problem is beyond the router.",
+    "g=$(route -n get default 2>/dev/null | awk '/gateway/{print $2}'); if [ -n \"$g\" ]; then ping -c 4 $g; else echo 'No default gateway found. The Mac has no active network connection.'; fi"),
+  T("Network", "Trace route", "Each hop between this Mac and a host or IP.", "traceroute -m 15 {host}"),
+  T("Network", "DNS lookup (dig)", "The answer, which DNS server replied and how long it took.",
+    "dig {host} +noall +answer +stats", { hostDefault: "apple.com" }),
+  T("Network", "DNS lookup (nslookup)", "Looks up the IP address of a hostname.",
+    "nslookup {host}", { hostDefault: "apple.com" }),
+  T("Network", "Test a port (TCP)", "Checks that a host accepts connections on a port, such as 443 (HTTPS), 22 (SSH) or 445 (file sharing).",
+    "nc -zv -G 5 {host} {port}", { hostDefault: "www.apple.com" }),
+  T("Network", "Internet speed & quality test", "Apple's built-in test: speed, responsiveness and latency. Takes about 30 seconds. Needs macOS 12 or newer.",
+    "networkQuality"),
+  T("Network", "Apple services reachability", "Checks the Mac can reach the hosts used for updates, activation, Apple Account and device enrollment (MDM). Edit the host list in the code if needed.",
+    "for h in www.apple.com captive.apple.com gdmf.apple.com mesu.apple.com swscan.apple.com albert.apple.com appleid.apple.com deviceenrollment.apple.com mdmenrollment.apple.com iprofiles.apple.com; do printf '%-28s' $h; nc -z -G 5 $h 443 && echo OK || echo FAILED; done"),
+  T("Network", "Captive portal check", "Apple's test page. If it says Success, no login page is blocking the connection.",
+    "curl -s --max-time 8 http://captive.apple.com; echo"),
+  T("Network", "ARP table (devices on the LAN)", "Devices this Mac has talked to recently, with IP and MAC address. Useful for spotting duplicate IPs.",
+    "arp -a"),
+  T("Network", "Active connections", "Programs with open network connections right now.",
+    "lsof -i -P -n | grep ESTABLISHED | head -n 25"),
+  T("Network", "Listening ports", "Programs waiting for incoming connections.",
+    "lsof -iTCP -sTCP:LISTEN -n -P"),
+  T("Network", "Renew DHCP lease (Wi-Fi)", "Asks the router for a fresh IP address on Wi-Fi. Fixes self-assigned 169.254.x.x addresses.",
+    WIFI + R`sudo ipconfig set $d DHCP; echo "DHCP renewed on $d."`, { admin: true, warn: true }),
+
+  // ---- Wi-Fi
+  T("Wi-Fi", "Wi-Fi info", "Wi-Fi IP, router and subnet details.", "networksetup -getinfo Wi-Fi"),
+  T("Wi-Fi", "Wi-Fi connection details", "Current network, signal, channel, security and link speed. On newer macOS the network name may show as <redacted>.",
+    "system_profiler SPAirPortDataType | grep -A 16 'Current Network Information'"),
+  T("Wi-Fi", "Wi-Fi diagnostics (wdutil)", "Detailed signal (RSSI), noise, channel and transmit rate. Needs macOS 12 or newer.",
+    "sudo wdutil info", { admin: true }),
+  T("Wi-Fi", "Nearby Wi-Fi networks", "Other networks in range with channel and signal. Helps spot a crowded channel.",
+    "system_profiler SPAirPortDataType | sed -n '/Other Local Wi-Fi Networks/,$p' | head -n 60"),
+  T("Wi-Fi", "Wi-Fi MAC address", "The hardware address, for router allow-lists. If Private Wi-Fi Address is on, the network sees a different one.",
+    "networksetup -getmacaddress Wi-Fi"),
+  T("Wi-Fi", "Saved Wi-Fi networks", "Networks this Mac remembers, in priority order.",
+    WIFI + "networksetup -listpreferredwirelessnetworks $d"),
+  T("Wi-Fi", "Restart Wi-Fi", "Turns Wi-Fi off and on again.",
+    R`d=$(networksetup -listallhardwareports | awk '/Wi-Fi|AirPort/{getline; print $2}'); networksetup -setairportpower $d off; sleep 2; networksetup -setairportpower $d on; echo "Wi-Fi ($d) restarted."`, { warn: true }),
+
+  // ---- Network Config
+  T("Network Config", "Proxy settings", "Shows any proxy the Mac is forced through. A wrong proxy blocks browsing.",
+    "scutil --proxy"),
+  T("Network Config", "Turn off Wi-Fi proxies", "Disables web, secure web and auto proxy on Wi-Fi.",
+    "sudo networksetup -setwebproxystate Wi-Fi off; sudo networksetup -setsecurewebproxystate Wi-Fi off; sudo networksetup -setautoproxystate Wi-Fi off; echo 'Wi-Fi proxies turned off.'", { admin: true, warn: true }),
+  T("Network Config", "Reset DNS servers to automatic", "Removes manually typed DNS servers on Wi-Fi so the router's DNS is used.",
+    "sudo networksetup -setdnsservers Wi-Fi Empty; echo 'Wi-Fi DNS servers reset to automatic.'", { admin: true, warn: true }),
+  T("Network Config", "VPN status", "Lists configured VPNs and whether each is connected.",
+    "scutil --nc list"),
+  T("Network Config", "Firewall status", "Shows whether the macOS firewall is on.",
+    "/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate"),
+  T("Network Config", "Reset network configuration (last resort)", "Fixes deep network problems nothing else solves. Saved networks and custom settings are lost.", null,
+    { warn: true, steps: ["Turn Wi-Fi off (menu bar, or System Settings, then Wi-Fi).",
+      "In Finder choose Go, then Go to Folder, paste /Library/Preferences/SystemConfiguration/ and press Enter.",
+      "Create a backup folder on the Desktop and move these files into it: com.apple.airport.preferences.plist, com.apple.network.eapolclient.configuration.plist, NetworkInterfaces.plist, preferences.plist. Skip any that are missing.",
+      "Restart the Mac. macOS recreates the files.",
+      "Turn Wi-Fi on and reconnect. Saved Wi-Fi networks and custom settings (static IP, proxy, VPN) must be set up again, so note them first."] }),
+
+  // ---- Repair & Maintenance
+  T("Repair & Maintenance", "Verify startup disk", "Checks the main volume for errors without changing anything.",
+    "sudo diskutil verifyVolume /", { admin: true }),
+  T("Repair & Maintenance", "Cancel all print jobs", "Clears stuck print jobs from every printer.",
+    "cancel -a 2>&1; echo 'All print jobs cancelled.'", { warn: true }),
+  T("Repair & Maintenance", "Restart Finder", "Relaunches Finder. Fixes frozen windows and desktop glitches.",
+    "killall Finder; echo 'Finder restarted.'"),
+  T("Repair & Maintenance", "Restart Dock", "Relaunches the Dock. Fixes an unresponsive Dock or Mission Control.",
+    "killall Dock; echo 'Dock restarted.'"),
+  T("Repair & Maintenance", "Rebuild Spotlight index", "Re-indexes the main disk. Search is slow for a while.",
+    "sudo mdutil -E /; echo 'Spotlight re-index started.'", { admin: true, warn: true }),
+
+  // ---- Browser & Apps (manual steps, no command)
+  T("Browser & Apps", "Clear browser cache (Chrome)", "Fixes pages that load wrong, old logins and slow sites.", null,
+    { steps: ["Open Chrome.", "Press Cmd + Shift + Delete.", "Set Time range to \"All time\".",
+              "Tick \"Cached images and files\".", "Click Delete data, then restart Chrome."] }),
+  T("Browser & Apps", "Clear browser cache (Safari)", "Fixes pages that load wrong and slow sites.", null,
+    { steps: ["Open Safari, then Safari menu, then Settings, then Advanced.", "Tick \"Show features for web developers\".",
+              "In the menu bar choose Develop, then Empty Caches.", "Restart Safari."] }),
+  T("Browser & Apps", "Force quit a frozen app", "Ends an app that won't respond.", null,
+    { steps: ["Press Cmd + Option + Esc.", "Select the app that is not responding.", "Click Force Quit."] }),
+];
+
+/* ======================================================================
+   "USE WHEN" NOTES — one short line per tool so any support colleague
+   knows when to reach for it. Key = the tool name above.
+   ====================================================================== */
+const WIN_USE = {
+  "System information": "You need the Windows version, model or specs for a ticket, warranty or compatibility check.",
+  "Uptime (last restart)": "A PC is slow or glitchy. Check if it was ever restarted, as many problems clear after one.",
+  "Refresh group policy": "A work PC is missing a setting, drive mapping or policy that IT just pushed.",
+  "Recent system errors": "A PC crashes, freezes or restarts on its own. Shows what Windows logged.",
+  "Battery health report": "A laptop battery drains fast or a customer asks about battery wear.",
+  "RAM usage summary": "A PC feels slow and you want to know if memory is full.",
+  "Top 10 processes by RAM": "Memory is full and you need to find the program using it.",
+  "Top 10 processes by CPU time": "The fan is loud or the PC is slow and you need to find the heavy program.",
+  "Windows Memory Diagnostic": "Random crashes or blue screens and you suspect faulty RAM.",
+  "Disk space": "Updates fail, the PC is slow or the user gets low disk space warnings.",
+  "Check temp folder size": "Check first to see if clearing temp files will free useful space.",
+  "Clear temp files": "The disk is nearly full or apps misbehave because of old temp files.",
+  "Empty Recycle Bin": "You need space and the user confirmed the deleted files are not needed.",
+  "IP configuration (full)": "No internet or a network problem. Shows the IP, gateway and DNS the PC is using.",
+  "Flush DNS cache": "A website fails on one PC but works on others, or after a DNS change.",
+  "Release & renew IP": "The PC has no network, or an IP starting with 169.254, after a network change.",
+  "Reset network stack": "Network problems remain after everything else was tried. Restart the PC afterwards.",
+  "Ping a host": "Check if a device, server or website can be reached and how fast it replies.",
+  "Trace route": "A site or server is slow or unreachable and you want to see where the path stops.",
+  "DNS lookup (nslookup)": "A name does not resolve. Check which IP DNS returns for a hostname.",
+  "Wi-Fi status": "Wi-Fi is slow or drops. Shows the network, signal strength and radio type.",
+  "Test internet (HTTPS)": "Quick check that the PC can really reach the internet on a secure port.",
+  "System File Checker": "Windows shows odd errors, missing features or crashes. Repairs system files.",
+  "DISM: check health": "A quick first check before running a longer repair.",
+  "DISM: restore health": "SFC cannot fix the problem or Windows Update keeps failing. Needs internet.",
+  "Check disk (read-only)": "Slow disk, file errors or freezes. Looks for disk problems safely.",
+  "Restart Print Spooler": "Printing is stuck or printers show offline on a PC.",
+  "Clear print queue": "A print job is stuck and will not delete.",
+  "Clear browser cache (Chrome / Edge)": "A website looks broken, shows old data or will not log in.",
+  "Clear Microsoft Teams cache": "Teams will not load, is stuck signing in or shows old messages.",
+  "Force close a frozen app": "An app does not respond and will not close normally."
+};
+
+const MAC_USE = {
+  "System information": "You need the macOS version, model, chip or memory for a ticket, warranty or compatibility check.",
+  "Uptime (last restart)": "A Mac is slow or acting strange. Check when it was last restarted.",
+  "Battery health": "A MacBook drains fast, or you need the cycle count and condition for a battery check.",
+  "Check for software updates": "Before an update, or when an app needs a newer macOS. Installs nothing.",
+  "Recent crash reports": "An app keeps quitting. Shows which apps crashed and when.",
+  "RAM usage summary": "A Mac feels slow and you want to know if memory is under pressure.",
+  "Top 10 processes by RAM": "Find the app using the most memory.",
+  "Top 10 processes by CPU": "The fan is loud or the Mac is hot. Find the app using the CPU.",
+  "Purge inactive memory (RAM cache)": "Memory looks full and you want quick relief without restarting.",
+  "Disk space": "Updates will not install, the Mac is slow or the startup disk is almost full.",
+  "Largest folders in home": "The disk is full and you need to find what is taking the space.",
+  "Check user cache size": "Check first to see if clearing caches is worth it.",
+  "Clear user caches": "Apps misbehave or the disk is full. Close your apps first.",
+  "Empty Trash": "You need space and the user confirmed the Trash is not needed.",
+  "IP addresses (all interfaces)": "Quick look at the IP of Wi-Fi, Ethernet and adapters. Watch for 169.254 addresses.",
+  "Default gateway (router)": "Confirm the Mac knows its router. No gateway means no network connection.",
+  "Public IP address": "A customer needs the outside IP, or you check if a VPN or proxy is in use.",
+  "Interfaces & link status": "Check whether an Ethernet or Thunderbolt adapter is active.",
+  "Network service order": "The Mac uses Wi-Fi when you want Ethernet, or the other way round.",
+  "DNS servers in use": "Websites do not open but pinging an IP works. Check which DNS the Mac uses.",
+  "Flush DNS cache": "A site works on other devices but not this Mac, or after a DNS change.",
+  "Ping a host": "Check if a device, server or website can be reached and how fast it replies.",
+  "Ping the router": "Separate a Wi-Fi or LAN problem from an internet problem.",
+  "Trace route": "A site is slow or unreachable and you want to see where the path stops.",
+  "DNS lookup (dig)": "A name does not resolve. Shows the answer, the DNS server used and the time taken.",
+  "DNS lookup (nslookup)": "A quick name lookup when you do not need the detail of dig.",
+  "Test a port (TCP)": "An app or service cannot connect. Check if the port is open (443, 22, 445).",
+  "Internet speed & quality test": "The customer says the internet is slow. Gives speed and responsiveness.",
+  "Apple services reachability": "Updates, activation, Apple Account or MDM enrollment fail. Shows which Apple host is blocked.",
+  "Captive portal check": "Wi-Fi is connected but there is no internet in a shop or hotel. Checks for a hidden login page.",
+  "ARP table (devices on the LAN)": "You suspect a duplicate IP or want to see which devices the Mac has contacted.",
+  "Active connections": "Check which apps are using the network right now.",
+  "Listening ports": "Check which apps accept incoming connections, for a security or sharing check.",
+  "Renew DHCP lease (Wi-Fi)": "The Mac has a 169.254 address or lost its IP after a network change.",
+  "Wi-Fi info": "Quick view of the Wi-Fi IP, router and subnet.",
+  "Wi-Fi connection details": "Wi-Fi is slow. Check signal, channel and link speed.",
+  "Wi-Fi diagnostics (wdutil)": "Deep Wi-Fi checks for weak signal, noise or a low transmit rate.",
+  "Nearby Wi-Fi networks": "A crowded area, or you want to pick a less busy channel.",
+  "Wi-Fi MAC address": "The network admin needs the MAC address for an allow-list.",
+  "Saved Wi-Fi networks": "The Mac joins the wrong network, or you check which old networks it remembers.",
+  "Restart Wi-Fi": "Wi-Fi is connected but not working. The first quick fix to try.",
+  "Proxy settings": "Browsing fails only on this Mac. A leftover proxy may be forcing the traffic.",
+  "Turn off Wi-Fi proxies": "A proxy was found and is not needed.",
+  "Reset DNS servers to automatic": "Someone typed custom DNS servers and websites do not load.",
+  "VPN status": "Check if a VPN is connected and might be blocking local network access.",
+  "Firewall status": "A sharing or remote-access app cannot connect. Check if the firewall is on.",
+  "Reset network configuration (last resort)": "Every other network fix failed. Note the customer's settings first.",
+  "Verify startup disk": "The Mac freezes, apps crash or files get corrupted. Checks the disk without changes.",
+  "Cancel all print jobs": "A print job is stuck and will not delete.",
+  "Restart Finder": "Finder windows are frozen or the desktop is acting strange.",
+  "Restart Dock": "The Dock or Mission Control does not respond.",
+  "Rebuild Spotlight index": "Spotlight search finds nothing or shows wrong results.",
+  "Clear browser cache (Chrome)": "A website looks broken, shows old data or will not log in.",
+  "Clear browser cache (Safari)": "A website looks broken, shows old data or will not log in.",
+  "Force quit a frozen app": "An app is not responding and will not quit."
+};
+WINDOWS_TOOLS.forEach(t => t.use = WIN_USE[t.name]);
+MAC_TOOLS.forEach(t => t.use = MAC_USE[t.name]);
+
+const TOOLS_BY_OS = { Windows: WINDOWS_TOOLS, macOS: MAC_TOOLS };
+
+/* ======================================================================
+   APP LOGIC
+   ====================================================================== */
+const $ = (s) => document.querySelector(s);
+const HOST_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,252}$/;
+const PORT_RE = /^[0-9]{1,5}$/;
+let currentOS = null, activeCat = "All";
+
+function detectOS() {
+  const p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || navigator.userAgent;
+  if (/win/i.test(p)) return "Windows";
+  if (/mac|iphone|ipad/i.test(p)) return "macOS";
+  return null;
+}
+
+function showPicker() {
+  currentOS = null;
+  $("#toolkit").classList.add("hidden");
+  $("#picker").classList.remove("hidden");
+  const d = detectOS();
+  $("#detected").textContent = d ? "Detected on this computer: " + d : "Could not auto-detect your OS. Please pick one.";
+  document.querySelectorAll(".os-btn").forEach(b => b.classList.toggle("detected", b.dataset.os === d));
+}
+
+function chooseOS(os) {
+  const d = detectOS();
+  if (d && d !== os &&
+      !confirm("This computer looks like " + d + " but you picked " + os +
+               ".\nCommands for the other OS will not work here.\n\nContinue anyway?")) return;
+  currentOS = os; activeCat = "All";
+  $("#picker").classList.add("hidden");
+  $("#toolkit").classList.remove("hidden");
+  $("#tk-title").textContent = "IT Support Toolkit: " + os;
+  $("#search").value = "";
+  window.scrollTo(0, 0);
+  render();
+}
+
+function renderChips() {
+  const cats = ["All", ...new Set(TOOLS_BY_OS[currentOS].map(t => t.category))];
+  const box = $("#chips"); box.innerHTML = "";
+  cats.forEach(c => {
+    const b = document.createElement("button");
+    b.className = "chip" + (c === activeCat ? " active" : "");
+    b.textContent = c;
+    b.onclick = () => { activeCat = c; render(); };
+    box.appendChild(b);
+  });
+}
+
+function render() {
+  renderChips();
+  const q = $("#search").value.trim().toLowerCase();
+  const list = $("#list"); list.innerHTML = "";
+  const groups = {};
+  TOOLS_BY_OS[currentOS].forEach(t => {
+    if (activeCat !== "All" && t.category !== activeCat) return;
+    if (q && !(t.name + " " + t.desc + " " + (t.use || "") + " " + t.category).toLowerCase().includes(q)) return;
+    (groups[t.category] ||= []).push(t);
+  });
+  const keys = Object.keys(groups);
+  $("#empty").classList.toggle("hidden", keys.length > 0);
+  keys.forEach(cat => {
+    const h = document.createElement("div"); h.className = "cat-title"; h.textContent = cat;
+    const g = document.createElement("div"); g.className = "grid";
+    groups[cat].forEach(t => g.appendChild(makeCard(t)));
+    list.append(h, g);
+  });
+}
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+
+function howToRun(t) {
+  if (currentOS === "Windows") {
+    const where = t.shell === "cmd" ? "Command Prompt" : "PowerShell";
+    const open = t.shell === "cmd" ? "Start menu, type cmd" : "Start menu, type powershell";
+    return t.admin
+      ? [where + " as administrator", "(" + open + ", right-click, Run as administrator), paste, press Enter."]
+      : [where, "(" + open + "), paste, press Enter."];
+  }
+  return ["Terminal", "(Cmd + Space, type Terminal), paste, press Enter." + (t.admin ? " Enter your Mac password when asked." : "")];
+}
+
+function makeCard(t) {
+  const card = el("div", "card");
+  card.appendChild(el("h3", null, t.name));
+
+  const badges = el("div", "badges");
+  if (t.admin) badges.appendChild(el("span", "badge", currentOS === "Windows" ? "🔒 Needs administrator" : "🔒 Needs your Mac password"));
+  if (t.warn) badges.appendChild(el("span", "badge", "⚠ Changes things"));
+  if (t.steps) badges.appendChild(el("span", "badge blue", "Manual steps"));
+  if (badges.children.length) card.appendChild(badges);
+
+  card.appendChild(el("p", "desc", t.desc));
+  if (t.use) { const u = el("div", "use"); u.append(el("b", null, "Use when: "), t.use); card.appendChild(u); }
+
+  // manual steps card
+  if (t.steps) {
+    const ol = el("ol", "steps");
+    t.steps.forEach(s => ol.appendChild(el("li", null, s)));
+    card.appendChild(ol);
+    return card;
+  }
+
+  // optional host and port inputs
+  let hostInput = null, portInput = null;
+  if (t.cmd.includes("{host}") || t.cmd.includes("{port}")) {
+    const row = el("div", "host-row");
+    if (t.cmd.includes("{host}")) {
+      row.appendChild(el("label", null, "Host / IP:"));
+      hostInput = el("input"); hostInput.value = t.hostDefault || "8.8.8.8"; hostInput.spellcheck = false;
+      row.appendChild(hostInput);
+    }
+    if (t.cmd.includes("{port}")) {
+      row.appendChild(el("label", null, "Port:"));
+      portInput = el("input"); portInput.value = "443"; portInput.style.flex = "0 0 80px";
+      row.appendChild(portInput);
+    }
+    card.appendChild(row);
+  }
+
+  const pre = el("pre");
+  const buildCmd = () => {
+    let c = t.cmd, ok = true;
+    if (hostInput) {
+      const h = hostInput.value.trim();
+      const good = HOST_RE.test(h);
+      hostInput.classList.toggle("bad", !good);
+      ok = ok && good;
+      c = c.split("{host}").join(h);
+    }
+    if (portInput) {
+      const p = portInput.value.trim();
+      const good = PORT_RE.test(p) && +p >= 1 && +p <= 65535;
+      portInput.classList.toggle("bad", !good);
+      ok = ok && good;
+      c = c.split("{port}").join(p);
+    }
+    return ok ? c : null;
+  };
+  const refresh = () => { pre.textContent = buildCmd() ?? "Enter a valid hostname or IP (letters, numbers, . - _ : only) and a port from 1 to 65535."; };
+  if (portInput) portInput.addEventListener("input", refresh);
+  if (hostInput) hostInput.addEventListener("input", refresh);
+  refresh();
+  card.appendChild(pre);
+
+  const how = howToRun(t);
+  const howEl = el("div", "how");
+  howEl.append("Run in: ", el("b", null, how[0]), " " + how[1]);
+  card.appendChild(howEl);
+
+  const actions = el("div", "actions");
+  const copy = el("button", "btn primary", "Copy command");
+  copy.onclick = async () => {
+    const c = buildCmd(); if (!c) return;
+    await copyText(c);
+    copy.textContent = "Copied ✔"; copy.classList.add("done");
+    setTimeout(() => { copy.textContent = "Copy command"; copy.classList.remove("done"); }, 1600);
+  };
+  actions.appendChild(copy);
+
+  if (currentOS === "Windows") {
+    const dl = el("button", "btn", "Download .bat");
+    dl.title = "Downloads a file you can double-click to run";
+    dl.onclick = () => {
+      const c = buildCmd(); if (!c) return;
+      if (t.warn && !confirm('"' + t.name + '" changes things on this PC.\n\nDownload the script?')) return;
+      downloadBat(t, c);
+    };
+    actions.appendChild(dl);
+  }
+  card.appendChild(actions);
+  return card;
+}
+
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); }
+  catch (e) {
+    const ta = document.createElement("textarea");
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand("copy"); ta.remove();
+  }
+}
+
+/* PowerShell -EncodedCommand wants base64 of UTF-16LE text; avoids all quoting problems. */
+function psEncode(s) {
+  let bin = "";
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    bin += String.fromCharCode(c & 255, c >> 8);
+  }
+  return btoa(bin);
+}
+
+function downloadBat(t, cmd) {
+  const L = ["@echo off", "title " + t.name.replace(/[&|<>^%"]/g, " "), ""];
+  if (t.admin) {
+    L.push("net session >nul 2>&1",
+           "if errorlevel 1 (",
+           "  echo This tool needs administrator rights.",
+           "  echo Close this window, right-click the file and choose Run as administrator.",
+           "  pause",
+           "  exit /b",
+           ")", "");
+  }
+  L.push("echo Running: " + t.name.replace(/[&|<>^%"]/g, " "), "echo.");
+  if (t.shell === "cmd") L.push(cmd);
+  else L.push("powershell -NoProfile -EncodedCommand " + psEncode(cmd));
+  L.push("echo.", "echo Done.", "pause");
+  const blob = new Blob([L.join("\r\n")], { type: "application/octet-stream" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = t.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + ".bat";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+/* ---------- wire up ---------- */
+document.querySelectorAll(".os-btn").forEach(b => b.onclick = () => chooseOS(b.dataset.os));
+$("#change-os").onclick = showPicker;
+$("#search").addEventListener("input", render);
+showPicker();
+</script>
+</body>
+</html>
